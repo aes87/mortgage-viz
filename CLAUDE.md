@@ -1,3 +1,6 @@
+> Also follow `/workspace/CLAUDE.md` for global workspace conventions.
+> For documentation voice and formatting, follow `/workspace/projects/git-publishing/STYLE_GUIDE.md` (especially Section 8.6, Writing Voice).
+
 # Mortgage Viz
 
 ## Overview
