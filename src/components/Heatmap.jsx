@@ -1,6 +1,6 @@
 import { useRef, useEffect, useMemo, useState, useCallback } from "react";
 import * as d3 from "d3";
-import { generateHeatmapData, linspace, rentBoundaryPoints, calcBreakdown, calcDTI, getDTIBand } from "../utils/mortgage";
+import { generateHeatmapData, linspace, rentBoundaryPoints, calcBreakdown, calcTotalMonthly, calcDTI, getDTIBand } from "../utils/mortgage";
 
 const GRID_STEPS = 30;
 const MARGIN = { top: 24, right: 90, bottom: 70, left: 100 };
@@ -114,11 +114,6 @@ export default function Heatmap({
     [params, prices, taxes, valueMode],
   );
 
-  const compareData = useMemo(() => {
-    if (!compareParams) return null;
-    return generateHeatmapData(compareParams, prices, taxes, valueMode);
-  }, [compareParams, prices, taxes, valueMode]);
-
   const boundaryPoints = useMemo(
     () =>
       params.currentRent > 0 && valueMode === "monthly"
@@ -126,6 +121,13 @@ export default function Heatmap({
         : [],
     [params, valueMode],
   );
+
+  const compareBoundaryPoints = useMemo(() => {
+    if (!compareParams || params.currentRent <= 0) return [];
+    // Build a full params object for B: use compareParams overrides on top of A's base
+    const fullB = { ...params, ...compareParams };
+    return rentBoundaryPoints(fullB, params.taxMin, params.taxMax);
+  }, [compareParams, params]);
 
   const handleCellClick = useCallback((d) => {
     if (onCellClick) onCellClick(d);
@@ -225,52 +227,7 @@ export default function Heatmap({
       });
     }
 
-    // Compare overlay (difference)
-    if (compareData) {
-      const compG = g.append("g").attr("class", "compare-overlay").style("pointer-events", "none");
-      const diffs = data.map((d, i) => ({
-        ...d,
-        diff: d.payment - compareData[i].payment,
-      }));
-      const maxAbsDiff = d3.max(diffs, (d) => Math.abs(d.diff));
-      if (maxAbsDiff > 0) {
-        const diffColor = d3.scaleDiverging()
-          .domain([-maxAbsDiff, 0, maxAbsDiff])
-          .interpolator(d3.interpolateRdBu);
-
-        diffs.forEach((d) => {
-          if (Math.abs(d.diff) > maxAbsDiff * 0.02) {
-            compG.append("rect")
-              .attr("x", x(String(d.price)))
-              .attr("y", y(String(d.tax)))
-              .attr("width", bw).attr("height", bh)
-              .attr("fill", diffColor(d.diff))
-              .attr("opacity", 0.5)
-              .attr("rx", 1);
-          }
-        });
-
-        // Diff legend
-        const dlX = width + 24;
-        const dlY = height * 0.55;
-        const dlG = g.append("g").attr("transform", `translate(${dlX}, ${dlY})`);
-        dlG.append("text").attr("x", 8).attr("y", -6).attr("fill", "var(--text-muted)")
-          .attr("font-size", "9px").attr("font-weight", "600").text("Difference");
-        const diffGrad = defs.append("linearGradient").attr("id", "diff-gradient")
-          .attr("x1", "0%").attr("y1", "100%").attr("x2", "0%").attr("y2", "0%");
-        diffGrad.append("stop").attr("offset", "0%").attr("stop-color", diffColor(-maxAbsDiff));
-        diffGrad.append("stop").attr("offset", "50%").attr("stop-color", diffColor(0));
-        diffGrad.append("stop").attr("offset", "100%").attr("stop-color", diffColor(maxAbsDiff));
-        dlG.append("rect").attr("width", 12).attr("height", 60).attr("rx", 4)
-          .style("fill", "url(#diff-gradient)");
-        dlG.append("text").attr("x", 16).attr("y", 8).attr("fill", "var(--text-muted)")
-          .attr("font-size", "9px").text(`+${fmt(maxAbsDiff)}`);
-        dlG.append("text").attr("x", 16).attr("y", 35).attr("fill", "var(--text-muted)")
-          .attr("font-size", "9px").text("$0");
-        dlG.append("text").attr("x", 16).attr("y", 62).attr("fill", "var(--text-muted)")
-          .attr("font-size", "9px").text(`-${fmt(maxAbsDiff)}`);
-      }
-    }
+    // Compare overlay — second rent boundary line + filled zone between A and B
 
     // Pinned cell markers
     pinnedCells.forEach((pc, idx) => {
@@ -314,13 +271,12 @@ export default function Heatmap({
         extra = `<div class="tooltip-dti ${band.color}">DTI: ${(dti * 100).toFixed(1)}% — ${band.label}</div>`;
       }
 
-      if (compareData) {
-        const compCell = compareData.find((c) => c.price === d.price && c.tax === d.tax);
-        if (compCell) {
-          const diff = d.payment - compCell.payment;
-          const sign = diff >= 0 ? "+" : "";
-          extra += `<div class="tooltip-diff">vs Scenario B: <strong>${sign}${fmtFull(diff)}</strong></div>`;
-        }
+      if (compareParams) {
+        const fullB = { ...params, ...compareParams };
+        const bPayment = calcTotalMonthly({ homePrice: d.price, downPaymentPct: fullB.downPaymentPct, annualRate: fullB.annualRate, termYears: fullB.termYears, annualTax: d.tax, insuranceRate: fullB.insuranceRate, monthlyHOA: fullB.monthlyHOA });
+        const diff = b.total - bPayment;
+        const sign = diff >= 0 ? "+" : "";
+        extra += `<div class="tooltip-diff"><span class="tooltip-diff-label">A</span> ${fmtFull(b.total)}/mo &nbsp; <span class="tooltip-diff-label b">B</span> ${fmtFull(bPayment)}/mo &nbsp; <span class="tooltip-diff-delta ${diff >= 0 ? "pos" : "neg"}">${sign}${fmtFull(diff)}</span></div>`;
       }
 
       const modeLabel = valueMode === "totalCost" ? "Total cost" : valueMode === "totalInterest" ? "Total interest" : "Monthly";
@@ -376,15 +332,18 @@ export default function Heatmap({
         handleCellClick({ price: d.price, tax: d.tax });
       });
 
-    // Rent boundary line
-    if (boundaryPoints.length >= 2) {
-      const xLinear = d3.scaleLinear()
-        .domain([prices[0], prices[prices.length - 1]])
-        .range([bw / 2, width - bw / 2]);
-      const yLinear = d3.scaleLinear()
-        .domain([taxes[0], taxes[taxes.length - 1]])
-        .range([height - bh / 2, bh / 2]);
+    // Shared linear scales for rent boundary lines
+    const xLinear = d3.scaleLinear()
+      .domain([prices[0], prices[prices.length - 1]])
+      .range([bw / 2, width - bw / 2]);
+    const yLinear = d3.scaleLinear()
+      .domain([taxes[0], taxes[taxes.length - 1]])
+      .range([height - bh / 2, bh / 2]);
 
+    const isComparing = compareBoundaryPoints.length >= 2;
+
+    // Rent boundary line (Scenario A)
+    if (boundaryPoints.length >= 2) {
       const visiblePoints = boundaryPoints.filter(
         (d) => d.price >= prices[0] && d.price <= prices[prices.length - 1],
       );
@@ -407,6 +366,44 @@ export default function Heatmap({
 
         const rentLineG = g.append("g").attr("clip-path", "url(#chart-clip)");
 
+        // Filled zone between A and B when comparing
+        if (isComparing) {
+          const visibleB = compareBoundaryPoints.filter(
+            (d) => d.price >= prices[0] && d.price <= prices[prices.length - 1],
+          );
+          if (visibleB.length >= 2) {
+            // Build paired data for the area fill — match by tax value
+            const bByTax = new Map(visibleB.map((p) => [p.tax, p.price]));
+            const paired = [];
+            for (const p of visiblePoints) {
+              const bPrice = bByTax.get(p.tax);
+              if (bPrice !== undefined) {
+                paired.push({ tax: p.tax, priceA: p.price, priceB: bPrice });
+              }
+            }
+
+            if (paired.length >= 2) {
+              const areaGen = d3.area()
+                .x0((d) => xLinear(d.priceA))
+                .x1((d) => xLinear(d.priceB))
+                .y((d) => yLinear(d.tax))
+                .curve(d3.curveMonotoneY);
+
+              rentLineG.append("path").datum(paired).attr("d", areaGen)
+                .attr("fill", "url(#compare-zone-gradient)")
+                .attr("opacity", 0.2);
+
+              // Gradient for the zone fill
+              const zoneGrad = defs.append("linearGradient").attr("id", "compare-zone-gradient")
+                .attr("x1", "0%").attr("y1", "0%").attr("x2", "100%").attr("y2", "0%");
+              zoneGrad.append("stop").attr("offset", "0%").attr("stop-color", "var(--rent)").attr("stop-opacity", 0.6);
+              zoneGrad.append("stop").attr("offset", "50%").attr("stop-color", "#fff").attr("stop-opacity", 0.15);
+              zoneGrad.append("stop").attr("offset", "100%").attr("stop-color", "var(--compare)").attr("stop-opacity", 0.6);
+            }
+          }
+        }
+
+        // Glow + main line for Scenario A
         rentLineG.append("path").datum(visiblePoints).attr("d", lineGen)
           .attr("fill", "none").attr("stroke", "var(--rent)")
           .attr("stroke-width", 12).attr("opacity", 0.25).attr("filter", "url(#rent-glow)");
@@ -415,44 +412,91 @@ export default function Heatmap({
           .attr("fill", "none").attr("stroke", "var(--rent)")
           .attr("stroke-width", 2.5).attr("stroke-linecap", "round");
 
+        // Label for Scenario A line
         const lp = findLabelPos(visiblePoints, xLinear, yLinear, width, height);
         if (lp) {
+          const labelText = isComparing
+            ? "A — Current"
+            : `Rent $${params.currentRent.toLocaleString()}/mo`;
           applyTextHalo(
             rentLineG.append("text")
               .attr("x", lp.x).attr("y", lp.y - 14)
               .attr("fill", "var(--rent)").attr("font-size", "14px").attr("font-weight", "700")
-              .text(`Rent $${params.currentRent.toLocaleString()}/mo`),
+              .text(labelText),
           );
         }
 
-        const buyIdx = Math.floor(visiblePoints.length * 0.3);
-        const bp = visiblePoints[buyIdx];
-        if (bp) {
-          const bx = xLinear(bp.price);
-          const by = yLinear(bp.tax);
-          if (bx > 80) {
-            applyTextHalo(
-              rentLineG.append("text")
-                .attr("x", bx - 18).attr("y", by + 22)
-                .attr("text-anchor", "end").attr("fill", "var(--rent)")
-                .attr("font-size", "12px").attr("font-weight", "600").attr("opacity", 0.8)
-                .text("\u2190 buying wins"),
-            );
+        // Zone annotations (only when NOT comparing — they'd clutter the dual-line view)
+        if (!isComparing) {
+          const buyIdx = Math.floor(visiblePoints.length * 0.3);
+          const bp = visiblePoints[buyIdx];
+          if (bp) {
+            const bx = xLinear(bp.price);
+            const by = yLinear(bp.tax);
+            if (bx > 80) {
+              applyTextHalo(
+                rentLineG.append("text")
+                  .attr("x", bx - 18).attr("y", by + 22)
+                  .attr("text-anchor", "end").attr("fill", "var(--rent)")
+                  .attr("font-size", "12px").attr("font-weight", "600").attr("opacity", 0.8)
+                  .text("\u2190 buying wins"),
+              );
+            }
+          }
+          const rentIdx = Math.floor(visiblePoints.length * 0.7);
+          const rp = visiblePoints[rentIdx];
+          if (rp) {
+            const rx = xLinear(rp.price);
+            const ry = yLinear(rp.tax);
+            if (rx < width - 80) {
+              applyTextHalo(
+                rentLineG.append("text")
+                  .attr("x", rx + 18).attr("y", ry - 16)
+                  .attr("text-anchor", "start").attr("fill", "var(--rent)")
+                  .attr("font-size", "12px").attr("font-weight", "600").attr("opacity", 0.8)
+                  .text("renting wins \u2192"),
+              );
+            }
           }
         }
-        const rentIdx = Math.floor(visiblePoints.length * 0.7);
-        const rp = visiblePoints[rentIdx];
-        if (rp) {
-          const rx = xLinear(rp.price);
-          const ry = yLinear(rp.tax);
-          if (rx < width - 80) {
-            applyTextHalo(
-              rentLineG.append("text")
-                .attr("x", rx + 18).attr("y", ry - 16)
-                .attr("text-anchor", "start").attr("fill", "var(--rent)")
-                .attr("font-size", "12px").attr("font-weight", "600").attr("opacity", 0.8)
-                .text("renting wins \u2192"),
-            );
+
+        // Scenario B rent boundary line
+        if (isComparing) {
+          const visibleB = compareBoundaryPoints.filter(
+            (d) => d.price >= prices[0] && d.price <= prices[prices.length - 1],
+          );
+          if (visibleB.length >= 2) {
+            // Glow for B line
+            const glowFilterB = defs.append("filter").attr("id", "compare-glow")
+              .attr("filterUnits", "userSpaceOnUse")
+              .attr("x", "-50%").attr("y", "-50%").attr("width", "200%").attr("height", "200%");
+            glowFilterB.append("feGaussianBlur").attr("stdDeviation", "5").attr("result", "blur");
+            const feMergeB = glowFilterB.append("feMerge");
+            feMergeB.append("feMergeNode").attr("in", "blur");
+            feMergeB.append("feMergeNode").attr("in", "SourceGraphic");
+
+            const lineGenB = d3.line()
+              .x((d) => xLinear(d.price)).y((d) => yLinear(d.tax))
+              .curve(d3.curveMonotoneY);
+
+            rentLineG.append("path").datum(visibleB).attr("d", lineGenB)
+              .attr("fill", "none").attr("stroke", "var(--compare)")
+              .attr("stroke-width", 12).attr("opacity", 0.2).attr("filter", "url(#compare-glow)");
+
+            rentLineG.append("path").datum(visibleB).attr("d", lineGenB)
+              .attr("fill", "none").attr("stroke", "var(--compare)")
+              .attr("stroke-width", 2.5).attr("stroke-linecap", "round")
+              .attr("stroke-dasharray", "8,4");
+
+            const lpB = findLabelPos(visibleB, xLinear, yLinear, width, height);
+            if (lpB) {
+              applyTextHalo(
+                rentLineG.append("text")
+                  .attr("x", lpB.x).attr("y", lpB.y + 22)
+                  .attr("fill", "var(--compare)").attr("font-size", "14px").attr("font-weight", "700")
+                  .text("B — What if?"),
+              );
+            }
           }
         }
       }
@@ -598,7 +642,7 @@ export default function Heatmap({
       svgEl.removeEventListener("touchmove", onTouchMove);
       svgEl.removeEventListener("touchend", onTouchEnd);
     };
-  }, [data, compareData, prices, taxes, dimensions, boundaryPoints, params, valueMode, showAffordability, grossIncome, pinnedCells, handleCellClick]);
+  }, [data, prices, taxes, dimensions, boundaryPoints, compareBoundaryPoints, params, compareParams, valueMode, showAffordability, grossIncome, pinnedCells, handleCellClick]);
 
   return (
     <div className="heatmap-container" ref={containerRef}>

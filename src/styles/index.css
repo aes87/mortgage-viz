@@ -13,6 +13,8 @@
   --accent-glow: rgba(233, 69, 96, 0.35);
   --rent: #00e5ff;
   --rent-glow: rgba(0, 229, 255, 0.35);
+  --compare: #f0a030;
+  --compare-glow: rgba(240, 160, 48, 0.35);
   --comfortable: #00c878;
   --stretching: #f0b400;
   --maximum: #f06420;
@@ -552,7 +554,35 @@ main {
 .tooltip .tooltip-diff {
   font-size: 10px;
   color: var(--text-muted);
-  padding: 2px 0;
+  padding: 4px 0 2px;
+  border-top: 1px solid var(--border-subtle);
+  margin-top: 2px;
+}
+
+.tooltip .tooltip-diff-label {
+  display: inline-block;
+  padding: 1px 4px;
+  border-radius: 3px;
+  font-size: 9px;
+  font-weight: 700;
+  background: var(--rent);
+  color: #08081a;
+}
+
+.tooltip .tooltip-diff-label.b {
+  background: var(--compare);
+}
+
+.tooltip .tooltip-diff-delta {
+  font-weight: 700;
+}
+
+.tooltip .tooltip-diff-delta.pos {
+  color: var(--overlimit);
+}
+
+.tooltip .tooltip-diff-delta.neg {
+  color: var(--comfortable);
 }
 
 /* Summary stats bar */
@@ -698,15 +728,130 @@ main {
 .dti-band.overlimit { color: var(--overlimit); }
 .dti-band.overlimit .dti-swatch { background: var(--overlimit); }
 
-/* Scenario B controls */
-.scenario-b-controls {
-  border-top: 2px solid var(--accent);
+/* Compare controls */
+.compare-controls {
+  padding: 18px;
+  border-top: 2px solid var(--compare);
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
 }
 
-.scenario-b-controls h2 {
-  color: var(--accent) !important;
-  border-top: none !important;
-  padding-top: 0 !important;
+.compare-controls h2 {
+  font-size: 12px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--compare);
+}
+
+.compare-hint {
+  font-size: 11px;
+  color: var(--text-dim);
+  margin-top: -6px;
+}
+
+.compare-controls label {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 6px 8px;
+  border-radius: 6px;
+  transition: background 0.15s;
+}
+
+.compare-controls label:hover {
+  background: rgba(255, 255, 255, 0.02);
+}
+
+.compare-controls label > span {
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--text);
+}
+
+.compare-controls .input-row input[type="range"]::-webkit-slider-thumb {
+  background: var(--compare);
+  box-shadow: 0 0 8px var(--compare-glow);
+}
+
+.compare-controls .input-row input[type="range"]::-webkit-slider-thumb:hover {
+  box-shadow: 0 0 16px var(--compare-glow), 0 0 4px var(--compare);
+}
+
+.compare-controls .input-row input[type="range"]::-moz-range-thumb {
+  background: var(--compare);
+  box-shadow: 0 0 8px var(--compare-glow);
+}
+
+.compare-value-input {
+  color: var(--compare) !important;
+}
+
+.compare-unit {
+  color: var(--compare) !important;
+}
+
+.compare-value {
+  color: var(--compare) !important;
+}
+
+.compare-delta {
+  font-size: 10px;
+  font-weight: 600;
+  color: var(--compare);
+  margin-top: -2px;
+}
+
+.compare-term-buttons button.active {
+  background: var(--compare) !important;
+  border-color: var(--compare) !important;
+  box-shadow: 0 0 12px var(--compare-glow) !important;
+}
+
+.compare-term-buttons button:hover:not(.active) {
+  border-color: var(--compare) !important;
+  background: rgba(240, 160, 48, 0.08) !important;
+}
+
+.compare-legend {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 10px 8px;
+  margin-top: 4px;
+  border-top: 1px solid var(--border-subtle);
+}
+
+.compare-legend-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 11px;
+  font-weight: 500;
+  color: var(--text-muted);
+}
+
+.compare-legend-line {
+  width: 20px;
+  height: 3px;
+  border-radius: 2px;
+  flex-shrink: 0;
+}
+
+.compare-legend-line.a {
+  background: var(--rent);
+}
+
+.compare-legend-line.b {
+  background: var(--compare);
+  background-image: repeating-linear-gradient(
+    90deg,
+    var(--compare) 0px,
+    var(--compare) 6px,
+    transparent 6px,
+    transparent 10px
+  );
 }
 
 /* Export button */

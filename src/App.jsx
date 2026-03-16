@@ -37,8 +37,12 @@ export default function App() {
   const [valueMode, setValueMode] = useState(initial.extra.valueMode || "monthly");
   const [grossIncome, setGrossIncome] = useState(initial.extra.grossIncome || 100000);
 
-  // Scenario B for compare tab
-  const [paramsB, setParamsB] = useState(() => ({ ...initial.params, annualRate: initial.params.annualRate - 0.01 }));
+  // Scenario B overrides for compare tab (only the fields that differ from A)
+  const [compareOverrides, setCompareOverrides] = useState(() => ({
+    annualRate: Math.max(0.01, initial.params.annualRate - 0.01),
+    termYears: initial.params.termYears,
+    downPaymentPct: initial.params.downPaymentPct,
+  }));
 
   // Pinned cells (click-to-pin)
   const [pinnedCells, setPinnedCells] = useState([]);
@@ -91,20 +95,12 @@ export default function App() {
     setSelectedCell(null);
   }, []);
 
-  // Controls for Scenario B in compare mode
-  const updateB = useCallback((key, value) => {
-    setParamsB((prev) => {
-      const next = { ...prev, [key]: value };
-      if (key === "priceMin") next.priceMin = Math.max(0, Math.min(value, prev.priceMax - 25000));
-      if (key === "priceMax") next.priceMax = Math.max(prev.priceMin + 25000, value);
-      if (key === "taxMin") next.taxMin = Math.max(0, Math.min(value, prev.taxMax - 500));
-      if (key === "taxMax") next.taxMax = Math.max(prev.taxMin + 500, value);
-      return next;
-    });
+  const updateOverride = useCallback((key, value) => {
+    setCompareOverrides((prev) => ({ ...prev, [key]: value }));
   }, []);
 
   const showAffordability = activeTab === "affordability";
-  const compareParams = activeTab === "compare" ? paramsB : null;
+  const compareParams = activeTab === "compare" ? compareOverrides : null;
 
   return (
     <div className="app">
@@ -139,30 +135,38 @@ export default function App() {
             <AffordabilityControls grossIncome={grossIncome} onChange={setGrossIncome} />
           )}
           {activeTab === "compare" && (
-            <div className="controls scenario-b-controls">
-              <h2>Scenario B</h2>
+            <div className="compare-controls">
+              <h2>What if?</h2>
+              <p className="compare-hint">Adjust to see a second break-even line on the heatmap</p>
+
               <label>
                 <span>Interest Rate</span>
                 <div className="input-row">
                   <input type="range" min="1" max="12" step="0.125"
-                    value={paramsB.annualRate * 100}
-                    onChange={(e) => updateB("annualRate", parseFloat(e.target.value) / 100)} />
-                  <input type="number" className="value-input" min={1} max={12} step={0.125}
-                    value={(paramsB.annualRate * 100).toFixed(2)}
+                    value={compareOverrides.annualRate * 100}
+                    onChange={(e) => updateOverride("annualRate", parseFloat(e.target.value) / 100)} />
+                  <input type="number" className="value-input compare-value-input" min={1} max={12} step={0.125}
+                    value={(compareOverrides.annualRate * 100).toFixed(2)}
                     onChange={(e) => {
                       const v = parseFloat(e.target.value);
-                      if (!isNaN(v)) updateB("annualRate", Math.max(0.01, Math.min(0.12, v / 100)));
+                      if (!isNaN(v)) updateOverride("annualRate", Math.max(0.01, Math.min(0.12, v / 100)));
                     }} />
-                  <span className="value-unit">%</span>
+                  <span className="value-unit compare-unit">%</span>
                 </div>
+                {compareOverrides.annualRate !== params.annualRate && (
+                  <span className="compare-delta">
+                    {compareOverrides.annualRate > params.annualRate ? "+" : ""}
+                    {((compareOverrides.annualRate - params.annualRate) * 100).toFixed(2)}% vs current
+                  </span>
+                )}
               </label>
 
               <fieldset className="term-fieldset">
                 <legend>Loan Term</legend>
-                <div className="term-buttons">
+                <div className="term-buttons compare-term-buttons">
                   {[15, 30].map((t) => (
-                    <button key={t} className={paramsB.termYears === t ? "active" : ""}
-                      onClick={() => updateB("termYears", t)}>{t} yr</button>
+                    <button key={t} className={compareOverrides.termYears === t ? "active" : ""}
+                      onClick={() => updateOverride("termYears", t)}>{t} yr</button>
                   ))}
                 </div>
               </fieldset>
@@ -171,34 +175,33 @@ export default function App() {
                 <span>Down Payment</span>
                 <div className="input-row">
                   <input type="range" min="0" max="50" step="1"
-                    value={paramsB.downPaymentPct * 100}
-                    onChange={(e) => updateB("downPaymentPct", parseFloat(e.target.value) / 100)} />
-                  <span className="value">{(paramsB.downPaymentPct * 100).toFixed(0)}%</span>
+                    value={compareOverrides.downPaymentPct * 100}
+                    onChange={(e) => updateOverride("downPaymentPct", parseFloat(e.target.value) / 100)} />
+                  <span className="value compare-value">{(compareOverrides.downPaymentPct * 100).toFixed(0)}%</span>
                 </div>
+                {compareOverrides.downPaymentPct !== params.downPaymentPct && (
+                  <span className="compare-delta">
+                    {compareOverrides.downPaymentPct > params.downPaymentPct ? "+" : ""}
+                    {((compareOverrides.downPaymentPct - params.downPaymentPct) * 100).toFixed(0)}% vs current
+                  </span>
+                )}
               </label>
 
-              <label>
-                <span>Insurance Rate</span>
-                <div className="input-row">
-                  <input type="range" min="0" max="2" step="0.05"
-                    value={paramsB.insuranceRate * 100}
-                    onChange={(e) => updateB("insuranceRate", parseFloat(e.target.value) / 100)} />
-                  <span className="value">{(paramsB.insuranceRate * 100).toFixed(2)}%</span>
+              <div className="compare-legend">
+                <div className="compare-legend-item">
+                  <span className="compare-legend-line a"></span> Current scenario
                 </div>
-              </label>
-
-              <label>
-                <span>Monthly HOA</span>
-                <div className="input-row">
-                  <input type="range" min="0" max="800" step="25"
-                    value={paramsB.monthlyHOA}
-                    onChange={(e) => updateB("monthlyHOA", parseFloat(e.target.value))} />
-                  <span className="value">${paramsB.monthlyHOA}</span>
+                <div className="compare-legend-item">
+                  <span className="compare-legend-line b"></span> What if scenario
                 </div>
-              </label>
+              </div>
 
-              <button className="reset-btn" onClick={() => setParamsB({ ...params, annualRate: params.annualRate - 0.01 })}>
-                Copy from Scenario A
+              <button className="reset-btn" onClick={() => setCompareOverrides({
+                annualRate: Math.max(0.01, params.annualRate - 0.01),
+                termYears: params.termYears,
+                downPaymentPct: params.downPaymentPct,
+              })}>
+                Reset to defaults
               </button>
             </div>
           )}
