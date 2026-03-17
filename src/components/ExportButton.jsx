@@ -33,7 +33,7 @@ export default function ExportButton({ containerSelector }) {
 
     // Inline computed styles for export
     clone.setAttribute("xmlns", "http://www.w3.org/2000/svg");
-    clone.style.background = "#0f1419";
+    clone.style.background = "#c8c2b4";
 
     // Resolve CSS custom properties so exported SVG renders correctly
     inlineCSSVars(clone, svg);
@@ -51,7 +51,7 @@ export default function ExportButton({ containerSelector }) {
 
     const img = new Image();
     img.onload = () => {
-      ctx.fillStyle = "#0f1419";
+      ctx.fillStyle = "#c8c2b4";
       ctx.fillRect(0, 0, canvas.width, canvas.height);
       ctx.drawImage(img, 0, 0, width, height);
       URL.revokeObjectURL(url);

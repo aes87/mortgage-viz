@@ -107,7 +107,7 @@ export default function App() {
       <header>
         <div className="header-top">
           <div>
-            <h1>Mortgage Viz</h1>
+            <h1>Mortgage <em>Viz</em></h1>
             <p>Explore how home price and property tax affect your monthly payment</p>
           </div>
           <div className="header-actions">

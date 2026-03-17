@@ -8,8 +8,8 @@ const MARGIN = { top: 24, right: 90, bottom: 70, left: 100 };
 function applyTextHalo(sel) {
   sel
     .attr("paint-order", "stroke")
-    .attr("stroke", "rgba(15, 20, 25, 0.9)")
-    .attr("stroke-width", 4)
+    .attr("stroke", "rgba(205, 200, 190, 0.9)")
+    .attr("stroke-width", 5)
     .attr("stroke-linejoin", "round");
 }
 
@@ -50,12 +50,13 @@ function findLabelPos(points, xScale, yScale, width, height) {
 
 function mortgagePalette(t) {
   const stops = [
-    [0.00, [25, 45, 70]],
-    [0.20, [30, 65, 100]],
-    [0.40, [30, 90, 110]],
-    [0.60, [70, 140, 120]],
-    [0.80, [180, 155, 80]],
-    [1.00, [201, 165, 92]],
+    [0.00, [58, 86, 100]],
+    [0.15, [72, 108, 108]],
+    [0.35, [115, 135, 100]],
+    [0.55, [175, 160, 112]],
+    [0.75, [172, 118, 78]],
+    [0.90, [158, 82, 52]],
+    [1.00, [132, 58, 38]],
   ];
   let i = 0;
   while (i < stops.length - 2 && stops[i + 1][0] < t) i++;
@@ -69,10 +70,10 @@ function mortgagePalette(t) {
 }
 
 const DTI_COLORS = {
-  comfortable: "rgba(63, 185, 80, 0.0)",
-  stretching: "rgba(210, 153, 34, 0.18)",
-  maximum: "rgba(219, 109, 40, 0.28)",
-  overlimit: "rgba(248, 81, 73, 0.38)",
+  comfortable: "rgba(92, 122, 77, 0.0)",
+  stretching: "rgba(176, 141, 87, 0.2)",
+  maximum: "rgba(184, 90, 56, 0.25)",
+  overlimit: "rgba(139, 69, 52, 0.35)",
 };
 
 export default function Heatmap({
@@ -162,8 +163,8 @@ export default function Heatmap({
     const tooltip = d3.select(tooltipRef.current);
 
     // Scales
-    const x = d3.scaleBand().domain(prices.map(String)).range([0, width]).padding(0);
-    const y = d3.scaleBand().domain(taxes.map(String)).range([height, 0]).padding(0);
+    const x = d3.scaleBand().domain(prices.map(String)).range([0, width]).padding(0.03);
+    const y = d3.scaleBand().domain(taxes.map(String)).range([height, 0]).padding(0.03);
 
     const payments = data.map((d) => d.payment);
     const paymentMin = d3.min(payments);
@@ -174,10 +175,10 @@ export default function Heatmap({
     // Crosshair group
     const crosshairG = g.append("g").attr("class", "crosshair").style("pointer-events", "none");
     const crosshairV = crosshairG.append("line")
-      .attr("stroke", "rgba(255,255,255,0.35)").attr("stroke-width", 1)
+      .attr("stroke", "rgba(46, 42, 36, 0.35)").attr("stroke-width", 1)
       .attr("stroke-dasharray", "3,3").attr("stroke-linecap", "round").attr("opacity", 0);
     const crosshairH = crosshairG.append("line")
-      .attr("stroke", "rgba(255,255,255,0.35)").attr("stroke-width", 1)
+      .attr("stroke", "rgba(46, 42, 36, 0.35)").attr("stroke-width", 1)
       .attr("stroke-dasharray", "3,3").attr("stroke-linecap", "round").attr("opacity", 0);
 
     const fmt = (v) => {
@@ -294,7 +295,7 @@ export default function Heatmap({
     allCells
       .on("mouseenter", function (event, d) {
         d3.select(this).raise().transition().duration(80)
-          .attr("stroke", "#fff").attr("stroke-width", 2);
+          .attr("stroke", "#2e2a24").attr("stroke-width", 2);
 
         const cx = x(String(d.price)) + bw / 2;
         const cy = y(String(d.tax)) + bh / 2;
@@ -568,7 +569,7 @@ export default function Heatmap({
       const d = d3.select(cell).datum();
       if (!d) return;
 
-      d3.select(cell).raise().attr("stroke", "#fff").attr("stroke-width", 2);
+      d3.select(cell).raise().attr("stroke", "#2e2a24").attr("stroke-width", 2);
       const cx = x(String(d.price)) + bw / 2;
       const cy = y(String(d.tax)) + bh / 2;
       crosshairV.attr("x1", cx).attr("x2", cx).attr("y1", 0).attr("y2", height).attr("opacity", 0.35);

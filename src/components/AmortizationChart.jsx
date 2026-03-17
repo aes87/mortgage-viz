@@ -74,9 +74,9 @@ export default function AmortizationChart({ params, selectedCell }) {
       .attr("stroke-dasharray", "2,4");
 
     const colors = {
-      balance: "#f85149",
-      equity: "#58a6ff",
-      interest: "#c9a55c",
+      balance: "#8b4534",
+      equity: "#3d5a68",
+      interest: "#b08d57",
     };
 
     const line = d3.line().x((d) => x(d.year)).curve(d3.curveMonotoneX);

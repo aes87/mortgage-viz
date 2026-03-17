@@ -10,7 +10,7 @@ Years ago — first-time home buyer, no idea what I was doing — I built a MATL
 
 That tool worked. Helped me buy a house. Then it sat on a hard drive and collected dust.
 
-This is that tool rebuilt from scratch — React, D3, dark finance theme — as an exercise in AI-native design. Every line of code, every component, every CSS variable was written in collaboration with Claude. The original took a weekend of MATLAB wrangling. This one took a conversation.
+This is that tool rebuilt from scratch — React, D3, warm vintage infographic theme — as an exercise in AI-native design. Every line of code, every component, every CSS variable was written in collaboration with Claude. The original took a weekend of MATLAB wrangling. This one took a conversation.
 
 **[Try it live →](https://aes87.github.io/mortgage-viz/)**
 
@@ -46,7 +46,7 @@ graph LR
     URL -->|popstate| App
 ```
 
-The controls panel feeds loan parameters into React state. D3 renders a `scaleBand` grid with a custom color interpolation — navy through teal to gold. The rent boundary is computed by solving for the home price where `totalMonthly == currentRent` at each tax level, then drawing a `d3.line` with monotone interpolation.
+The controls panel feeds loan parameters into React state. D3 renders a `scaleBand` grid with a custom color interpolation — steel teal through sage to terracotta. The rent boundary is computed by solving for the home price where `totalMonthly == currentRent` at each tax level, then drawing a `d3.line` with monotone interpolation.
 
 Tabs are overlay modes — they modify the heatmap's behavior (affordability tints cells, compare adds a second boundary line) rather than replacing it. Click-to-pin lets you mark up to 5 cells for side-by-side reference.
 
@@ -67,7 +67,7 @@ src/
 │   ├── mortgage.js         # Pure calculation functions
 │   └── urlState.js         # URL encode/decode
 └── styles/
-    └── index.css           # Dark finance theme (CSS custom properties)
+    └── index.css           # Vintage infographic theme (CSS custom properties)
 ```
 
 ## The AI-Native Angle
@@ -76,7 +76,7 @@ This project is a proof of concept for a workflow — not a framework, not a lib
 
 - **Architecture decisions** — component boundaries, state management patterns, what goes in utils vs. components
 - **D3 integration** — the fiddly bits of making D3's imperative rendering play nice with React's declarative model
-- **Visual design** — palette selection, typography hierarchy, the shift from "neon gamer" to "professional finance tool"
+- **Visual design** — palette selection, typography hierarchy, the shift from dark finance terminal to warm editorial infographic
 - **Review and revision** — three parallel agents reviewed aesthetics, usability, and utility, then their feedback was synthesized into a second pass
 
 The MATLAB original was a single-purpose grid calculator. This version has five interactive modes, touch support, URL persistence, PNG export, and a coherent design language. The delta isn't about AI being faster — it's about AI being a viable design partner for the full stack, from calculation logic to color theory.
