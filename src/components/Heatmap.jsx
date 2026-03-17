@@ -294,15 +294,15 @@ export default function Heatmap({
     // Hover/click handlers
     allCells
       .on("mouseenter", function (event, d) {
-        d3.select(this).raise().transition().duration(80)
+        d3.select(this).transition().duration(80)
           .attr("stroke", "#2e2a24").attr("stroke-width", 2);
 
         const cx = x(String(d.price)) + bw / 2;
         const cy = y(String(d.tax)) + bh / 2;
         crosshairV.attr("x1", cx).attr("x2", cx).attr("y1", 0).attr("y2", height)
-          .raise().transition().duration(100).attr("opacity", 0.35);
+          .transition().duration(100).attr("opacity", 0.35);
         crosshairH.attr("x1", 0).attr("x2", width).attr("y1", cy).attr("y2", cy)
-          .raise().transition().duration(100).attr("opacity", 0.35);
+          .transition().duration(100).attr("opacity", 0.35);
 
         tooltip.classed("visible", true).html(buildTooltipHTML(d));
       })
@@ -569,7 +569,7 @@ export default function Heatmap({
       const d = d3.select(cell).datum();
       if (!d) return;
 
-      d3.select(cell).raise().attr("stroke", "#2e2a24").attr("stroke-width", 2);
+      d3.select(cell).attr("stroke", "#2e2a24").attr("stroke-width", 2);
       const cx = x(String(d.price)) + bw / 2;
       const cy = y(String(d.tax)) + bh / 2;
       crosshairV.attr("x1", cx).attr("x2", cx).attr("y1", 0).attr("y2", height).attr("opacity", 0.35);
