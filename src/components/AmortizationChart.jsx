@@ -81,30 +81,40 @@ export default function AmortizationChart({ params, selectedCell }) {
 
     const line = d3.line().x((d) => x(d.year)).curve(d3.curveMonotoneX);
 
+    const prefersReduced = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+
+    function drawLine(data, yAccessor, color, strokeWidth, dash) {
+      const path = g.append("path")
+        .datum(data)
+        .attr("d", line.y(yAccessor))
+        .attr("fill", "none")
+        .attr("stroke", color)
+        .attr("stroke-width", strokeWidth);
+
+      if (dash) path.attr("stroke-dasharray", dash);
+
+      // Line-drawing animation via stroke-dashoffset
+      if (!prefersReduced && !dash) {
+        const totalLength = path.node().getTotalLength();
+        path
+          .attr("stroke-dasharray", totalLength)
+          .attr("stroke-dashoffset", totalLength)
+          .transition()
+          .duration(1200)
+          .ease(d3.easeCubicOut)
+          .attr("stroke-dashoffset", 0);
+      }
+      return path;
+    }
+
     // Balance line
-    g.append("path")
-      .datum(yearly)
-      .attr("d", line.y((d) => y(d.balance)))
-      .attr("fill", "none")
-      .attr("stroke", colors.balance)
-      .attr("stroke-width", 2.5);
+    drawLine(yearly, (d) => y(d.balance), colors.balance, 2.5);
 
     // Equity line
-    g.append("path")
-      .datum(yearly)
-      .attr("d", line.y((d) => y(d.totalEquity)))
-      .attr("fill", "none")
-      .attr("stroke", colors.equity)
-      .attr("stroke-width", 2.5);
+    drawLine(yearly, (d) => y(d.totalEquity), colors.equity, 2.5);
 
-    // Total interest line
-    g.append("path")
-      .datum(yearly)
-      .attr("d", line.y((d) => y(d.totalInterest)))
-      .attr("fill", "none")
-      .attr("stroke", colors.interest)
-      .attr("stroke-width", 2)
-      .attr("stroke-dasharray", "6,3");
+    // Total interest line (dashed — skip draw animation)
+    drawLine(yearly, (d) => y(d.totalInterest), colors.interest, 2, "6,3");
 
     // X axis
     const xAxisG = g.append("g").attr("transform", `translate(0,${height})`).call(

@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo, useCallback } from "react";
+import { useState, useEffect, useMemo, useCallback, useRef } from "react";
 import Controls from "./components/Controls";
 import Heatmap from "./components/Heatmap";
 import TabBar from "./components/TabBar";
@@ -43,6 +43,29 @@ export default function App() {
     termYears: initial.params.termYears,
     downPaymentPct: initial.params.downPaymentPct,
   }));
+
+  // Dark mode
+  const [theme, setTheme] = useState(() => {
+    const stored = localStorage.getItem("mortgage-viz-theme");
+    if (stored) return stored;
+    return window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
+  });
+  useEffect(() => {
+    document.documentElement.setAttribute("data-theme", theme);
+    localStorage.setItem("mortgage-viz-theme", theme);
+  }, [theme]);
+  const toggleTheme = useCallback(() => setTheme((t) => t === "dark" ? "light" : "dark"), []);
+
+  // Controls panel open/close — start collapsed on mobile
+  const [controlsOpen, setControlsOpen] = useState(() => window.innerWidth > 700);
+  const toggleControls = useCallback(() => setControlsOpen((v) => !v), []);
+
+  // Tab crossfade key
+  const [tabKey, setTabKey] = useState(0);
+  const handleTabChange = useCallback((tab) => {
+    setActiveTab(tab);
+    setTabKey((k) => k + 1);
+  }, []);
 
   // Pinned cells (click-to-pin)
   const [pinnedCells, setPinnedCells] = useState([]);
@@ -106,9 +129,12 @@ export default function App() {
     <div className="app">
       <header>
         <div className="header-top">
-          <div>
-            <h1>Mortgage <em>Viz</em></h1>
-            <p>Explore how home price and property tax affect your monthly payment</p>
+          <div className="header-brand">
+            <img src={import.meta.env.BASE_URL + "icon.svg"} alt="" className="header-icon" width="36" height="36" />
+            <div>
+              <h1>Mortgage <em>Viz</em></h1>
+              <p>Explore how home price and property tax affect your monthly payment</p>
+            </div>
           </div>
           <div className="header-actions">
             {pinnedCells.length > 0 && (
@@ -116,14 +142,28 @@ export default function App() {
                 Clear {pinnedCells.length} pin{pinnedCells.length > 1 ? "s" : ""}
               </button>
             )}
-            <ExportButton containerSelector=".heatmap-container" />
+            <ExportButton containerSelector=".heatmap-container" theme={theme} />
+            <button className="theme-toggle" onClick={toggleTheme} aria-label="Toggle dark mode" title="Toggle dark mode">
+              <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+                {theme === "dark"
+                  ? <circle cx="8" cy="8" r="4" />
+                  : <path d="M13.5 8.5a5.5 5.5 0 0 1-6-6 5.5 5.5 0 1 0 6 6z" />}
+              </svg>
+            </button>
           </div>
         </div>
-        <TabBar active={activeTab} onChange={setActiveTab} />
+        <TabBar active={activeTab} onChange={handleTabChange} />
       </header>
 
       <main>
-        <div className="controls-wrapper">
+        <div className={`controls-wrapper${controlsOpen ? "" : " collapsed"}`}>
+          <button
+            className="sheet-handle"
+            onClick={toggleControls}
+            aria-label={controlsOpen ? "Collapse controls" : "Expand controls"}
+          >
+            <span className="sheet-handle-bar" />
+          </button>
           <Controls
             params={params}
             onChange={setParams}
@@ -207,20 +247,36 @@ export default function App() {
           )}
         </div>
 
+        <button
+          className="controls-toggle"
+          onClick={toggleControls}
+          aria-label={controlsOpen ? "Collapse controls" : "Expand controls"}
+          title={controlsOpen ? "Collapse controls" : "Expand controls"}
+        >
+          <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+            <path
+              d={controlsOpen ? "M10 3 L5 8 L10 13" : "M6 3 L11 8 L6 13"}
+              stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"
+            />
+          </svg>
+        </button>
+
         <div className="viz-area">
-          <Heatmap
-            params={params}
-            valueMode={valueMode}
-            showAffordability={showAffordability}
-            grossIncome={grossIncome}
-            compareParams={compareParams}
-            onCellClick={handleCellClick}
-            pinnedCells={pinnedCells}
-          />
           <SummaryStats data={heatmapData} valueMode={valueMode} />
-          {activeTab === "amortization" && (
-            <AmortizationChart params={params} selectedCell={selectedCell} />
-          )}
+          <div className="tab-content" key={tabKey}>
+            <Heatmap
+              params={params}
+              valueMode={valueMode}
+              showAffordability={showAffordability}
+              grossIncome={grossIncome}
+              compareParams={compareParams}
+              onCellClick={handleCellClick}
+              pinnedCells={pinnedCells}
+            />
+            {activeTab === "amortization" && (
+              <AmortizationChart params={params} selectedCell={selectedCell} />
+            )}
+          </div>
         </div>
       </main>
     </div>

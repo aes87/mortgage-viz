@@ -3,7 +3,8 @@ import * as d3 from "d3";
 import { generateHeatmapData, linspace, rentBoundaryPoints, calcBreakdown, calcTotalMonthly, calcDTI, getDTIBand } from "../utils/mortgage";
 
 const GRID_STEPS = 30;
-const MARGIN = { top: 24, right: 90, bottom: 70, left: 100 };
+const MARGIN_DESKTOP = { top: 24, right: 90, bottom: 70, left: 100 };
+const MARGIN_MOBILE = { top: 16, right: 50, bottom: 50, left: 60 };
 
 function applyTextHalo(sel) {
   sel
@@ -48,25 +49,55 @@ function findLabelPos(points, xScale, yScale, width, height) {
   return null;
 }
 
+// OKLCH → sRGB conversion (so D3 transitions can parse the output)
+function oklchToRgb(L, C, H) {
+  const hRad = H * Math.PI / 180;
+  const a = C * Math.cos(hRad);
+  const b = C * Math.sin(hRad);
+  // OKLab to LMS (cube root domain)
+  const l_ = L + 0.3963377774 * a + 0.2158037573 * b;
+  const m_ = L - 0.1055613458 * a - 0.0638541728 * b;
+  const s_ = L - 0.0894841775 * a - 1.2914855480 * b;
+  const l = l_ * l_ * l_;
+  const m = m_ * m_ * m_;
+  const s = s_ * s_ * s_;
+  // LMS to linear sRGB
+  let rl = +4.0767416621 * l - 3.3077115913 * m + 0.2309699292 * s;
+  let gl = -1.2684380046 * l + 2.6097574011 * m - 0.3413193965 * s;
+  let bl = -0.0041960863 * l - 0.7034186147 * m + 1.7076147010 * s;
+  // Gamma compress
+  const gamma = (x) => x >= 0.0031308 ? 1.055 * Math.pow(x, 1 / 2.4) - 0.055 : 12.92 * x;
+  const clamp = (x) => Math.round(Math.max(0, Math.min(1, gamma(Math.max(0, x)))) * 255);
+  return `rgb(${clamp(rl)},${clamp(gl)},${clamp(bl)})`;
+}
+
+// Perceptually uniform palette — interpolates in OKLCH, outputs rgb for D3
+// Cool teal → sage green → warm gold → terracotta → deep rust
 function mortgagePalette(t) {
   const stops = [
-    [0.00, [58, 86, 100]],
-    [0.15, [72, 108, 108]],
-    [0.35, [115, 135, 100]],
-    [0.55, [175, 160, 112]],
-    [0.75, [172, 118, 78]],
-    [0.90, [158, 82, 52]],
-    [1.00, [132, 58, 38]],
+    [0.00, [0.44, 0.06, 220]],  // deep teal
+    [0.15, [0.50, 0.06, 195]],  // muted teal-green
+    [0.35, [0.58, 0.07, 145]],  // sage green
+    [0.55, [0.68, 0.08, 85]],   // warm gold
+    [0.75, [0.58, 0.11, 55]],   // terracotta
+    [0.90, [0.48, 0.13, 35]],   // burnt sienna
+    [1.00, [0.40, 0.13, 25]],   // deep rust
   ];
   let i = 0;
   while (i < stops.length - 2 && stops[i + 1][0] < t) i++;
   const [t0, c0] = stops[i];
   const [t1, c1] = stops[i + 1];
   const f = (t - t0) / (t1 - t0);
-  const r = Math.round(c0[0] + (c1[0] - c0[0]) * f);
-  const g = Math.round(c0[1] + (c1[1] - c0[1]) * f);
-  const b = Math.round(c0[2] + (c1[2] - c0[2]) * f);
-  return `rgb(${r},${g},${b})`;
+
+  // Interpolate in OKLCH, handling hue wrap
+  const L = c0[0] + (c1[0] - c0[0]) * f;
+  const C = c0[1] + (c1[1] - c0[1]) * f;
+  let dH = c1[2] - c0[2];
+  if (dH > 180) dH -= 360;
+  if (dH < -180) dH += 360;
+  const H = c0[2] + dH * f;
+
+  return oklchToRgb(L, C, H);
 }
 
 const DTI_COLORS = {
@@ -139,6 +170,8 @@ export default function Heatmap({
 
     const containerWidth = dimensions.width;
     const containerHeight = dimensions.height;
+    const isMobile = containerWidth < 500;
+    const MARGIN = isMobile ? MARGIN_MOBILE : MARGIN_DESKTOP;
     const width = containerWidth - MARGIN.left - MARGIN.right;
     const height = containerHeight - MARGIN.top - MARGIN.bottom;
 
@@ -414,13 +447,13 @@ export default function Heatmap({
           applyTextHalo(
             rentLineG.append("text")
               .attr("x", lp.x).attr("y", lp.y - 14)
-              .attr("fill", "var(--rent)").attr("font-size", "14px").attr("font-weight", "700")
+              .attr("fill", "var(--rent)").attr("font-size", isMobile ? "11px" : "14px").attr("font-weight", "700")
               .text(labelText),
           );
         }
 
         // Zone annotations (only when NOT comparing — they'd clutter the dual-line view)
-        if (!isComparing) {
+        if (!isComparing && !isMobile) {
           const buyIdx = Math.floor(visiblePoints.length * 0.3);
           const bp = visiblePoints[buyIdx];
           if (bp) {
@@ -486,39 +519,45 @@ export default function Heatmap({
       }
     }
 
+    // Responsive font sizes
+    const axisFontSize = isMobile ? "10px" : "13px";
+    const labelFontSize = isMobile ? "10px" : "13px";
+    const legendFontSize = isMobile ? "10px" : "12px";
+    const axisTickCount = isMobile ? 4 : 5;
+
     // X axis
-    const xTickValues = niceTicksForBand(prices);
+    const xTickValues = niceTicksForBand(prices, axisTickCount);
     const xAxisG = g.append("g").attr("transform", `translate(0,${height})`).call(
       d3.axisBottom(x).tickValues(xTickValues)
         .tickFormat((d) => `$${(+d / 1000).toFixed(0)}k`),
     );
     xAxisG.select(".domain").remove();
-    xAxisG.selectAll("text").attr("fill", "var(--text)").attr("font-size", "13px");
+    xAxisG.selectAll("text").attr("fill", "var(--text)").attr("font-size", axisFontSize);
     xAxisG.selectAll(".tick line").attr("stroke", "var(--border)").attr("y2", 8);
 
-    g.append("text").attr("x", width / 2).attr("y", height + 54)
+    g.append("text").attr("x", width / 2).attr("y", height + (isMobile ? 38 : 54))
       .attr("text-anchor", "middle").attr("fill", "var(--text-muted)")
-      .attr("font-size", "13px").attr("font-weight", "500").text("Home Price");
+      .attr("font-size", labelFontSize).attr("font-weight", "500").text("Home Price");
 
     // Y axis
-    const yTickValues = niceTicksForBand(taxes);
+    const yTickValues = niceTicksForBand(taxes, axisTickCount);
     const yAxisG = g.append("g").call(
       d3.axisLeft(y).tickValues(yTickValues)
-        .tickFormat((d) => `$${(+d / 1000).toFixed(1)}k`),
+        .tickFormat((d) => `$${(+d / 1000).toFixed(isMobile ? 0 : 1)}k`),
     );
     yAxisG.select(".domain").remove();
-    yAxisG.selectAll("text").attr("fill", "var(--text)").attr("font-size", "13px");
+    yAxisG.selectAll("text").attr("fill", "var(--text)").attr("font-size", axisFontSize);
     yAxisG.selectAll(".tick line").attr("stroke", "var(--border)").attr("x2", -8);
 
     g.append("text").attr("transform", "rotate(-90)")
-      .attr("x", -height / 2).attr("y", -75)
+      .attr("x", -height / 2).attr("y", isMobile ? -42 : -75)
       .attr("text-anchor", "middle").attr("fill", "var(--text-muted)")
-      .attr("font-size", "13px").attr("font-weight", "500").text("Annual Property Tax");
+      .attr("font-size", labelFontSize).attr("font-weight", "500").text(isMobile ? "Property Tax" : "Annual Property Tax");
 
     // Color legend
-    const legendWidth = 16;
+    const legendWidth = isMobile ? 12 : 16;
     const legendHeight = height;
-    const legendX = width + 24;
+    const legendX = width + (isMobile ? 10 : 24);
 
     const legendScale = d3.scaleLinear().domain([paymentMin, paymentMax]).range([legendHeight, 0]);
 
@@ -537,7 +576,7 @@ export default function Heatmap({
     const modeLabels = { monthly: "$/mo", totalCost: "Total $", totalInterest: "Int $" };
     legendG.append("text").attr("x", legendWidth / 2).attr("y", -10)
       .attr("text-anchor", "middle").attr("fill", "var(--text)")
-      .attr("font-size", "12px").attr("font-weight", "600")
+      .attr("font-size", legendFontSize).attr("font-weight", "600")
       .text(modeLabels[valueMode] || "$/mo");
 
     legendG.append("rect").attr("width", legendWidth).attr("height", legendHeight)
@@ -549,10 +588,10 @@ export default function Heatmap({
       return `$${(d / 1000).toFixed(1)}k`;
     };
 
-    const legendAxis = d3.axisRight(legendScale).ticks(5).tickFormat(legendFmt);
+    const legendAxis = d3.axisRight(legendScale).ticks(isMobile ? 3 : 5).tickFormat(legendFmt);
     const legendAxisG = legendG.append("g").attr("transform", `translate(${legendWidth}, 0)`).call(legendAxis);
     legendAxisG.select(".domain").remove();
-    legendAxisG.selectAll("text").attr("fill", "var(--text)").attr("font-size", "12px");
+    legendAxisG.selectAll("text").attr("fill", "var(--text)").attr("font-size", legendFontSize);
     legendAxisG.selectAll(".tick line").attr("stroke", "var(--border)");
 
     // Touch support

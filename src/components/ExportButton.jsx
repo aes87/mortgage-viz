@@ -19,7 +19,7 @@ function inlineCSSVars(clone, source) {
   walk(clone, source);
 }
 
-export default function ExportButton({ containerSelector }) {
+export default function ExportButton({ containerSelector, theme }) {
   const handleExport = async () => {
     const container = document.querySelector(containerSelector);
     if (!container) return;
@@ -28,12 +28,17 @@ export default function ExportButton({ containerSelector }) {
     if (!svg) return;
 
     const clone = svg.cloneNode(true);
-    const width = svg.getAttribute("width") || svg.clientWidth;
-    const height = svg.getAttribute("height") || svg.clientHeight;
+    const width = +svg.getAttribute("width") || svg.clientWidth;
+    const height = +svg.getAttribute("height") || svg.clientHeight;
+
+    const bgColor = getComputedStyle(document.documentElement).getPropertyValue("--bg").trim();
+    const accentColor = getComputedStyle(document.documentElement).getPropertyValue("--accent").trim();
+    const textDimColor = getComputedStyle(document.documentElement).getPropertyValue("--text-dim").trim();
+    const stripeColor = getComputedStyle(document.documentElement).getPropertyValue("--stripe").trim();
 
     // Inline computed styles for export
     clone.setAttribute("xmlns", "http://www.w3.org/2000/svg");
-    clone.style.background = "#c8c2b4";
+    clone.style.background = bgColor;
 
     // Resolve CSS custom properties so exported SVG renders correctly
     inlineCSSVars(clone, svg);
@@ -42,19 +47,39 @@ export default function ExportButton({ containerSelector }) {
     const blob = new Blob([svgData], { type: "image/svg+xml;charset=utf-8" });
     const url = URL.createObjectURL(blob);
 
+    // Extra space for branding bar
+    const barHeight = 36;
     const canvas = document.createElement("canvas");
     const scale = 2; // retina
     canvas.width = width * scale;
-    canvas.height = height * scale;
+    canvas.height = (height + barHeight) * scale;
     const ctx = canvas.getContext("2d");
     ctx.scale(scale, scale);
 
     const img = new Image();
     img.onload = () => {
-      ctx.fillStyle = "#c8c2b4";
-      ctx.fillRect(0, 0, canvas.width, canvas.height);
-      ctx.drawImage(img, 0, 0, width, height);
+      // Background
+      ctx.fillStyle = bgColor;
+      ctx.fillRect(0, 0, width, height + barHeight);
+
+      // Top accent stripe
+      ctx.fillStyle = stripeColor;
+      ctx.fillRect(0, 0, width, 3);
+
+      // Chart
+      ctx.drawImage(img, 0, 3, width, height);
       URL.revokeObjectURL(url);
+
+      // Branding bar at bottom
+      ctx.fillStyle = stripeColor;
+      ctx.fillRect(0, height + 3, width, 1);
+      ctx.font = "bold 11px Inter, system-ui, sans-serif";
+      ctx.fillStyle = accentColor;
+      ctx.fillText("Mortgage Viz", 12, height + barHeight - 10);
+      ctx.font = "10px Inter, system-ui, sans-serif";
+      ctx.fillStyle = textDimColor;
+      const dateStr = new Date().toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
+      ctx.fillText(dateStr, width - ctx.measureText(dateStr).width - 12, height + barHeight - 10);
 
       canvas.toBlob((pngBlob) => {
         const a = document.createElement("a");
