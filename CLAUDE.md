@@ -1,5 +1,4 @@
-> Also follow `/workspace/CLAUDE.md` for global workspace conventions.
-> For documentation voice and formatting, follow `/workspace/projects/git-publishing/STYLE_GUIDE.md` (especially Section 8.6, Writing Voice).
+@../../CLAUDE.md
 
 # Mortgage Viz
 
@@ -63,6 +62,9 @@ mortgage-viz/
 ├── vite.config.js
 ├── index.html
 ├── public/
+├── tests/
+│   ├── heatmap-hover.spec.js  # Playwright E2E: hover void regression
+│   └── screenshots/           # Visual regression captures
 └── src/
     ├── main.jsx           # React entry point
     ├── App.jsx            # Root component (layout)
@@ -81,8 +83,16 @@ mortgage-viz/
 - Controls should update App state, which flows down to Heatmap as props
 - Use CSS custom properties for theme colors so the palette is easy to tweak
 
+## Testing
+- E2E tests use Playwright (`@playwright/test`)
+- Tests live in `tests/` (not `src/`)
+- Run: `npx playwright test`
+- The dev server must be running (`npm run dev`) before running tests
+- `test-results/` is gitignored ephemeral output
+
 ## When Working Here
 1. `npm install` if node_modules is missing
 2. `npm run dev` to start the dev server
 3. Open the URL shown in terminal (usually http://localhost:5173)
 4. The heatmap should render immediately with default parameter values
+5. Run `npx playwright test` to verify no regressions
