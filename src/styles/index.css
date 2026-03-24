@@ -1347,30 +1347,19 @@ header {
     -webkit-tap-highlight-color: transparent;
   }
 
-  /* ─ Drag handle ─ */
+  /* ─ Sheet toggle ─ */
   .sheet-handle {
     display: flex;
-    flex-direction: column;
     align-items: center;
     justify-content: center;
-    gap: 6px;
     width: 100%;
-    padding: 10px 0 6px;
+    padding: 10px 0;
     border: none;
     background: transparent;
     cursor: pointer;
     flex-shrink: 0;
     -webkit-tap-highlight-color: transparent;
     touch-action: manipulation;
-  }
-
-  .sheet-handle-bar {
-    display: block;
-    width: 36px;
-    height: 4px;
-    background: var(--border);
-    border-radius: 2px;
-    transition: background 0.15s;
   }
 
   .sheet-handle-label {
@@ -1382,10 +1371,7 @@ header {
     text-transform: uppercase;
     letter-spacing: 0.06em;
     color: var(--text-dim);
-  }
-
-  .sheet-handle:active .sheet-handle-bar {
-    background: var(--text-dim);
+    transition: color 0.15s;
   }
 
   .sheet-handle:active .sheet-handle-label {

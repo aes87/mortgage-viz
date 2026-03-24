@@ -163,7 +163,6 @@ export default function App() {
             onClick={toggleControls}
             aria-label={controlsOpen ? "Collapse controls" : "Expand controls"}
           >
-            <span className="sheet-handle-bar" />
             <span className="sheet-handle-label">
               Controls
               <svg width="12" height="12" viewBox="0 0 12 12" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
