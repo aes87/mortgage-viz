@@ -156,6 +156,7 @@ export default function App() {
       </header>
 
       <main>
+        {controlsOpen && <div className="sheet-backdrop" onClick={toggleControls} />}
         <div className={`controls-wrapper${controlsOpen ? "" : " collapsed"}`}>
           <button
             className="sheet-handle"
@@ -163,6 +164,12 @@ export default function App() {
             aria-label={controlsOpen ? "Collapse controls" : "Expand controls"}
           >
             <span className="sheet-handle-bar" />
+            <span className="sheet-handle-label">
+              Controls
+              <svg width="12" height="12" viewBox="0 0 12 12" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+                <path d={controlsOpen ? "M3 5 L6 8 L9 5" : "M3 7 L6 4 L9 7"} />
+              </svg>
+            </span>
           </button>
           <Controls
             params={params}
