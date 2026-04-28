@@ -4,7 +4,7 @@ What does this house actually cost per month? Not the Zillow estimate, not the l
 
 ![License](https://img.shields.io/github/license/aes87/mortgage-viz?style=flat) ![Deploy](https://img.shields.io/github/actions/workflow/status/aes87/mortgage-viz/deploy.yml?label=deploy&style=flat)
 
-**[Try it live →](https://aes87.github.io/mortgage-viz/)**
+**[Try it live →](https://harteWired.github.io/mortgage-viz/)**
 
 ## What It Does
 
@@ -18,7 +18,7 @@ What does this house actually cost per month? Not the Zillow estimate, not the l
 ## Quick Start
 
 ```bash
-git clone https://github.com/aes87/mortgage-viz.git
+git clone https://github.com/harteWired/mortgage-viz.git
 cd mortgage-viz
 npm install
 npm run dev
